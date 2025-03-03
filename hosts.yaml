@@ -1,0 +1,8 @@
+all:
+  children:
+    dwm:
+      hosts:
+        172.16.0.2:
+      vars:
+        ansible_user: alex
+        timezone: Australia/Sydney
