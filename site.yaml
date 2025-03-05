@@ -1,3 +1,4 @@
+---
 - hosts: all
   become: yes
   tasks:
@@ -5,4 +6,6 @@
   - include_role:
       name: patch
 
+  - include_role:
+      name: build_ardour 
  

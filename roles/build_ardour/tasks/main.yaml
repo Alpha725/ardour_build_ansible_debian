@@ -1,0 +1,78 @@
+---
+- name: Install build tools (Debian/Ubuntu)
+  apt:
+    name:
+      - build-essential
+      - pkg-config
+      - cmake
+      - git
+    state: present
+
+- name: Install Ardour dependencies (Debian/Ubuntu)
+  apt:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ ardour_dependencies }}"
+
+- name: Install Vamp
+  git:
+    repo: https://github.com/vamp-plugins/vamp-plugin-sdk.git
+    dest: "{{ vamp_build_dir }}"
+
+- name: create vamp build directory
+  file:
+    dest: "{{ vamp_build_dir }}/build"
+    state: directory 
+
+- name: Configure Vamp CMake
+  command: cmake .. -DVAMPSDK_BUILD_EXAMPLE_PLUGINS=OFF -DVAMPSDK_BUILD_SIMPLE_HOST=ON -DVAMPSDK_BUILD_RDFGEN=OFF 
+  args:
+    chdir: "{{ vamp_build_dir }}/build"
+
+- name: Configure Vamp CMake
+  command: cmake --build . 
+  args:
+    chdir: "{{ vamp_build_dir }}/build"
+
+- name: Add vamp-sdk to PKG_CONFIG_PATH in ~/.bashrc
+  ansible.builtin.lineinfile:
+    path: /root/.bashrc
+    line: 'export PKG_CONFIG_PATH="{{ vamp_build_dir }}/build:$PKG_CONFIG_PATH"'
+    state: present
+    create: true
+
+- name: Run pkg-config
+  ansible.builtin.shell: |
+    pkg-config --cflags --libs vamp-sdk > /dev/null
+  register: pkg_config_check
+  environment:
+    PKG_CONFIG_PATH: "{{ vamp_build_dir }}/build:{{ lookup('env', 'PKG_CONFIG_PATH') | default('') }}" 
+
+- name: Clone Ardour repository
+  git:
+    repo: "{{ ardour_repo }}"
+    dest: "{{ ardour_build_dir }}"
+    version: master 
+    force: true
+
+- name: Replace shebang from python to python3
+  ansible.builtin.replace:
+    path: "{{ ardour_build_dir }}/waf" 
+    regexp: '#!/usr/bin/env python'
+    replace: '#!/usr/bin/env python3'
+
+- name: Execute waf configure
+  shell: |
+    export PKG_CONFIG_PATH="{{ vamp_build_dir }}/build:$PKG_CONFIG_PATH"
+    cd {{ ardour_build_dir }}
+    ./waf configure -also-include={{ vamp_build_dir }}/build
+  register: waf_configure_result
+  changed_when: waf_configure_result.rc != 0
+
+- name: Execute waf build
+  command: ./waf 
+  args:
+    chdir: "{{ ardour_build_dir }}"
+  register: waf_build_result
+  changed_when: waf_build_result.rc != 0
+

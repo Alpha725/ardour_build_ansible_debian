@@ -6,3 +6,7 @@ all:
       vars:
         ansible_user: alex
         timezone: Australia/Sydney
+        ardour_repo: "https://github.com/Ardour/ardour.git"
+        ardour_build_dir: "{{ ansible_env.HOME }}/ardour-build"
+        vamp_build_dir: "{{ ansible_env.HOME }}/vamp-build"
+        ardour_install_prefix: "/usr/local" 
